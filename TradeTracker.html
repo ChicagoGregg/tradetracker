@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Tracker with Working Toggles</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .light-theme {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .dark-theme {
+            background-color: #333;
+            color: #f0f0f0;
+        }
+        .tracker {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
+        .light-theme .tracker {
+            background-color: #fff;
+        }
+        .dark-theme .tracker {
+            background-color: #555;
+        }
+        .slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+            padding: 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .slot.current {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .coin {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-size: cover;
+            background-position: center;
+        }
+        .coin.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .pnl-input {
+            margin-top: 10px;
+            width: 80px;
+        }
+        .options {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            left: 0;
+            bottom: 100%;
+            background-color: #f9f9f9;
+            min-width: 250px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .dark-theme .dropdown-content {
+            background-color: #444;
+            color: #fff;
+        }
+        .dropdown-content button {
+            width: 100%;
+            padding: 8px;
+            margin: 2px 0;
+            text-align: left;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .dark-theme .dropdown-content button {
+            color: #fff;
+        }
+        .dropdown-content button:hover {
+            background-color: #ddd;
+        }
+        .dark-theme .dropdown-content button:hover {
+            background-color: #666;
+        }
+        .show {
+            display: block;
+        }
+        .error-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #e74c3c;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            display: none;
+        }
+        .summary {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 660px;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        .summary-left, .summary-right {
+            width: 48%;
+        }
+        .settings-item {
+            margin: 8px 0;
+        }
+        .dropdown-content button::after {
+            content: " ▾";
+            float: right;
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="options">
+        <div class="dropdown">
+            <button onclick="toggleDropdown()">Options</button>
+            <div id="myDropdown" class="dropdown-content">
+                <button id="soundButton" onclick="toggleSound()">Sound: ON</button>
+                <button id="themeButton" onclick="toggleTheme()">Theme: Dark</button>
+                <button id="pnlButton" onclick="togglePnL()">Track PnL: ON</button>
+                <button id="summaryButton" onclick="toggleTradeSummary()">Track Summary: ON</button>
+                
+                <div class="settings-item">
+                    <button onclick="editLockSeconds()">Allow next trade after (seconds): 15</button>
+                </div>
+                
+                <div class="settings-item">
+                    <button onclick="editCoinTitles()">Edit Coin Titles</button>
+                </div>
+                
+                <div class="settings-item">
+                    <button onclick="editImages()">Edit Images</button>
+                </div>
+                
+                <div class="settings-item">
+                    <button onclick="saveSettings()">💾 Save configuration file...</button>
+                </div>
+                
+                <div class="settings-item">
+                    <button onclick="openAboutPage()">About</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="tracker" id="tracker"></div>
+    <div class="summary" id="summary">
+        <div class="summary-left" id="summaryLeft"></div>
+        <div class="summary-right" id="summaryRight"></div>
+    </div>
+    <div class="error-bar" id="errorBar"></div>
+
+    <script>
+        let slots = [
+            { title: "T.I.W.", number: 1 },
+            { title: "Quarter", number: 2 },
+            { title: "Half", number: 3 },
+            { title: "Full", number: 4 },
+            { title: "Full+", number: 5 },
+            { title: "Bonus", number: 6 }
+        ];
+
+        let defaultImages = [
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Trade_Tracker_Logo_380x380.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Trade_Tracker_Logo_380x380.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Trade_Tracker_Logo_380x380.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Trade_Tracker_Logo_380x380.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Trade_Tracker_Logo_380x380.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Trade_Tracker_Logo_380x380.png?raw=true"
+        ];
+
+        let profitableImages = [
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Green_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Green_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Green_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Green_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Green_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Green_380x380_Blank.png?raw=true"
+        ];
+
+        let unprofitableImages = [
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Red_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Red_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Red_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Red_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Red_380x380_Blank.png?raw=true",
+            "https://github.com/ChicagoGregg/tradetracker/blob/main/assets/Coin_Red_380x380_Blank.png?raw=true"
+        ];
+
+        const tracker = document.getElementById('tracker');
+        let coinSound = new Audio('https://bigsoundbank.com/UPLOAD/mp3/0341.mp3');
+        let isSoundOn = true;
+        let isLightTheme = false;
+        let isTrackPnL = true;
+        let isTrackTradeSummary = true;
+        let currentTradeIndex = 0;
+        let lockSeconds = 15;
+        let lockTimer = null;
+        const settingsFilename = 'TradeTracker.json';
+
+        function initializeTracker() {
+            tracker.innerHTML = '';
+            slots.forEach((slot, index) => {
+                const slotElement = document.createElement('div');
+                slotElement.className = 'slot';
+                if (index === currentTradeIndex) slotElement.classList.add('current');
+
+                const title = document.createElement('div');
+                title.className = 'title';
+                title.textContent = slot.title;
+
+                const coin = document.createElement('div');
+                coin.className = 'coin';
+                coin.style.backgroundImage = `url(${defaultImages[index]})`;
+
+                const status = document.createElement('div');
+                status.className = 'status';
+                status.textContent = 'Pending';
+
+                const pnlInput = document.createElement('input');
+                pnlInput.type = 'number';
+                pnlInput.className = 'pnl-input';
+                pnlInput.value = '0';
+                pnlInput.style.display = isTrackPnL ? 'block' : 'none';
+
+                coin.addEventListener('click', () => handleCoinClick(index, coin, status));
+                pnlInput.addEventListener('input', updateSummary);
+
+                slotElement.append(title, coin, status, pnlInput);
+                tracker.appendChild(slotElement);
+            });
+        }
+
+        function handleCoinClick(index, coin, status) {
+            if (index < currentTradeIndex) return showError("Can't modify previous trades");
+            if (index > currentTradeIndex) return showError("Complete current trade first");
+            
+            if (isSoundOn) {
+                coinSound.currentTime = 0;
+                coinSound.play();
+            }
+
+            const statuses = ['Pending', 'Winner', 'Non-Winner'];
+            const images = [defaultImages, profitableImages, unprofitableImages];
+            const currentStatus = statuses.indexOf(status.textContent);
+            const newStatus = (currentStatus + 1) % 3;
+
+            status.textContent = statuses[newStatus];
+            coin.style.backgroundImage = `url(${images[newStatus][index]})`;
+            updateSummary();
+
+            if (lockTimer) {
+                clearTimeout(lockTimer);
+            }
+
+            if (newStatus !== 0) {
+                lockTimer = setTimeout(() => {
+                    moveToNextTrade();
+                }, lockSeconds * 1000);
+            }
+        }
+
+        function editLockSeconds() {
+            const newValue = prompt('Enter seconds to wait before allowing next trade (1-60):', lockSeconds);
+            if (newValue && !isNaN(newValue)) {
+                lockSeconds = Math.min(60, Math.max(1, parseInt(newValue)));
+                document.querySelector('button[onclick="editLockSeconds()"]').textContent = `Allow next trade after (seconds): ${lockSeconds}`;
+            }
+        }
+
+        function editCoinTitles() {
+            slots.forEach((slot, index) => {
+                const newTitle = prompt(`Edit title for Coin ${index + 1}:`, slot.title);
+                if (newTitle !== null) slot.title = newTitle;
+            });
+            initializeTracker();
+        }
+
+        function editImages() {
+            ['Default', 'Profitable', 'Unprofitable'].forEach((type, typeIndex) => {
+                const images = [defaultImages, profitableImages, unprofitableImages][typeIndex];
+                images.forEach((url, index) => {
+                    const newUrl = prompt(`${type} image for Coin ${index + 1}:`, url);
+                    if (newUrl !== null) images[index] = newUrl;
+                });
+            });
+            initializeTracker();
+        }
+
+        function saveSettings() {
+            const settings = {
+                slots,
+                defaultImages,
+                profitableImages,
+                unprofitableImages,
+                isSoundOn,
+                isLightTheme,
+                isTrackPnL,
+                isTrackTradeSummary,
+                lockSeconds
+            };
+
+            const blob = new Blob([JSON.stringify(settings)], {type: 'application/json'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = settingsFilename;
+            link.click();
+            alert(`Saving settings as ${settingsFilename} in your selected folder. Make sure this is the same directory as where the main HTML file resides.`);
+        }
+
+        function toggleDropdown() {
+            document.getElementById("myDropdown").classList.toggle("show");
+        }
+
+        function showError(message) {
+            errorBar.textContent = message;
+            errorBar.style.display = 'block';
+            setTimeout(() => errorBar.style.display = 'none', 3000);
+        }
+
+        function moveToNextTrade() {
+            console.log('Moving to next trade. Current index:', currentTradeIndex);
+            if (currentTradeIndex < slots.length - 1) {
+                currentTradeIndex++;
+                updateCurrentTradeHighlight();
+                console.log('Moved to index:', currentTradeIndex);
+            } else {
+                console.log('Already at last trade');
+            }
+        }
+
+        function updateCurrentTradeHighlight() {
+            document.querySelectorAll('.slot').forEach((slot, i) => {
+                if (i === currentTradeIndex) {
+                    slot.classList.add('current');
+                } else {
+                    slot.classList.remove('current');
+                }
+            });
+        }
+
+        function updateSummary() {
+            let [profitableCount, unprofitableCount, profit, loss] = [0, 0, 0, 0];
+            
+            document.querySelectorAll('.slot').forEach(slot => {
+                const status = slot.querySelector('.status').textContent;
+                const pnl = parseFloat(slot.querySelector('.pnl-input').value) || 0;
+                
+                if (status === 'Winner') {
+                    profitableCount++;
+                    profit += pnl;
+                } else if (status === 'Non-Winner') {
+                    unprofitableCount++;
+                    loss += pnl;
+                }
+            });
+
+            summaryLeft.innerHTML = isTrackTradeSummary ? `
+                <h3>Trade Summary</h3>
+                ✅ Wins: ${profitableCount}<br>
+                ❌ Losses: ${unprofitableCount}
+            ` : '';
+
+            summaryRight.innerHTML = isTrackPnL ? `
+                <h3>PnL Summary</h3>
+                Profit: $${profit.toFixed(2)}<br>
+                Loss: $${loss.toFixed(2)}<br>
+                Net: $${(profit - loss).toFixed(2)}
+            ` : '';
+        }
+
+        function toggleSound() {
+            isSoundOn = !isSoundOn;
+            document.getElementById('soundButton').textContent = `Sound: ${isSoundOn ? 'ON' : 'OFF'}`;
+        }
+
+        function toggleTheme() {
+            isLightTheme = !isLightTheme;
+            document.body.className = isLightTheme ? 'light-theme' : 'dark-theme';
+            const themeButton = document.getElementById('themeButton');
+            themeButton.textContent = `Theme: ${isLightTheme ? 'Light' : 'Dark'}`;
+        }
+
+        function togglePnL() {
+            isTrackPnL = !isTrackPnL;
+            document.getElementById('pnlButton').textContent = `Track PnL: ${isTrackPnL ? 'ON' : 'OFF'}`;
+            document.querySelectorAll('.pnl-input').forEach(input => {
+                input.style.display = isTrackPnL ? 'block' : 'none';
+            });
+            updateSummary();
+        }
+
+        function toggleTradeSummary() {
+            isTrackTradeSummary = !isTrackTradeSummary;
+            document.getElementById('summaryButton').textContent = `Track Summary: ${isTrackTradeSummary ? 'ON' : 'OFF'}`;
+            updateSummary();
+        }
+
+        function openAboutPage() {
+            window.open('https://github.com/ChicagoGregg/tradetracker', '_blank');
+        }
+
+        function applySettings() {
+            document.body.className = isLightTheme ? 'light-theme' : 'dark-theme';
+            document.getElementById('soundButton').textContent = `Sound: ${isSoundOn ? 'ON' : 'OFF'}`;
+            document.getElementById('themeButton').textContent = `Theme: ${isLightTheme ? 'Light' : 'Dark'}`;
+            document.getElementById('pnlButton').textContent = `Track PnL: ${isTrackPnL ? 'ON' : 'OFF'}`;
+            document.getElementById('summaryButton').textContent = `Track Summary: ${isTrackTradeSummary ? 'ON' : 'OFF'}`;
+            document.querySelector('button[onclick="editLockSeconds()"]').textContent = `Allow next trade after (seconds): ${lockSeconds}`;
+            
+            document.querySelectorAll('.pnl-input').forEach(input => {
+                input.style.display = isTrackPnL ? 'block' : 'none';
+            });
+            
+            updateSummary();
+        }
+
+        // Initialize the tracker
+        initializeTracker();
+        applySettings();
+
+        // Attempt to load settings on startup
+        fetch(settingsFilename)
+            .then(response => response.json())
+            .then(settings => {
+                Object.assign(window, settings);
+                coinSound = new Audio(coinSound.src);
+                initializeTracker();
+                applySettings();
+            })
+            .catch(error => {
+                console.log('No settings file found or error loading. Using defaults.');
+                applySettings();
+            });
+
+        // Close dropdown when clicking outside
+        window.onclick = e => {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById("myDropdown").classList.remove("show");
+            }
+        };
+    </script>
+</body>
+</html>
