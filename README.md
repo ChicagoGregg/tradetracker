@@ -6,8 +6,8 @@
 
 This trade tracking tool was inspired by my experience using [AlgoBoxPro], the ultimate indicator toolkit for NinjaTrader. 
 
-**Special Discount:** Get 50% off AlgoBoxPro with code `FREEDOM` at:  
-[https://algoboxpro.com]  
+**Special Trial for the best trading tools for NinjaTrader:** Get a free 2-week trial by clicking here:
+[http://algoboxpro.com/?linkId=lp_993251&sourceId=cosmosis&tenantId=algoboxpro]
 
 [![AlgoBoxPro Logo]([https://algoboxpro.com/logo.png](https://static.wixstatic.com/media/6e5e49_4441b60c6e504ec79a3b2dc49c0cb5bf~mv2.png/v1/fill/w_294,h_302,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/METAL2-removebg.png))](https://algoboxpro.com)
 
